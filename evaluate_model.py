@@ -12,6 +12,8 @@ from dc1.net import Net
 from dc1.image_dataset import ImageDataset
 from dc1.batch_sampler import BatchSampler
 from pathlib import Path
+from sklearn.metrics import precision_recall_curve, average_precision_score
+
 
 def load_model(model_path: str, device: str = "cpu") -> nn.Module:
     """
@@ -43,7 +45,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
             logits = model(x_batch).squeeze(1)
             probs = torch.sigmoid(logits)
 
-            predicted_labels = (probs > 0.5).long()
+            predicted_labels = (probs > 0.4).long()
 
             all_labels.extend(y_batch.cpu().numpy())
             all_probs.extend(probs.cpu().numpy())
@@ -75,10 +77,21 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
     plt.title("Receiver Operating Characteristic (ROC) Curve")
     plt.legend()
     plt.show()
+        
+    # Precision-Recall Curve
+    precision, recall, _ = precision_recall_curve(all_labels, all_probs)
+    avg_precision = average_precision_score(all_labels, all_probs)
+    plt.figure()
+    plt.plot(recall, precision, label=f"Precision-Recall Curve (AP = {avg_precision:.2f})")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve")
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
-    model_path = "model_weights/model_03_04_12_38.txt"  # Update with your trained model path
+    model_path = "model_weights/model_03_11_12_56.txt"  # Update with your trained model path
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = load_model(model_path, device)

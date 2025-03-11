@@ -45,7 +45,7 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.1)
 
     # Loss function - Focal Loss
-    loss_function = FocalLoss(alpha=0.25, gamma=2.0)
+    loss_function = FocalLoss(alpha=0.4, gamma=3.0)
 
     n_epochs = args.nb_epochs
     batch_size = args.batch_size
