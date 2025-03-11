@@ -18,9 +18,11 @@ class BatchSampler:
 
             min_class_size = min(len(pneumo_indices), len(non_pneumo_indices))
             self.indexes = np.concatenate([
-                np.random.choice(pneumo_indices, min_class_size, replace=False),
-                np.random.choice(non_pneumo_indices, min_class_size, replace=False)
+            np.random.choice(pneumo_indices, min(len(non_pneumo_indices), len(pneumo_indices) * 3), replace=True),
+            non_pneumo_indices
             ])
+
+
         else:
             self.indexes = np.arange(len(dataset))
 
