@@ -15,6 +15,59 @@ import numpy as np
 from dc1.batch_sampler import BatchSampler
 from dc1.image_dataset import ImageDataset
 from dc1.train_test import train_model, test_model
+from dc1.grad_cam import GradCAM
+
+def visualize_gradcam(model, device, test_sampler, num_samples=5):
+    """Generate Grad-CAM visualizations for a few test samples"""
+    model.eval()
+    
+    # Get the last convolutional layer
+    target_layer = model.layer4[-1].conv2
+    grad_cam = GradCAM(model, target_layer)
+    
+    plt.figure(figsize=(15, 3*num_samples))
+    sample_idx = 0
+    
+    for data, target in test_sampler:
+        if sample_idx >= num_samples:
+            break
+            
+        # Process one image at a time
+        for i in range(min(len(data), num_samples - sample_idx)):
+            single_image = data[i:i+1].to(device)  # Keep batch dimension
+            single_target = target[i].to(device)
+            
+            # Generate Grad-CAM
+            cam = grad_cam.generate(single_image)
+            
+            # Plot original image
+            plt.subplot(num_samples, 3, sample_idx*3 + 1)
+            plt.imshow(single_image[0].cpu().squeeze(), cmap='gray')
+            plt.title(f'Original (True: {single_target.item()})')
+            plt.axis('off')
+            
+            # Plot heatmap
+            plt.subplot(num_samples, 3, sample_idx*3 + 2)
+            plt.imshow(cam, cmap='jet')
+            plt.title('Grad-CAM Heatmap')
+            plt.axis('off')
+            
+            # Plot overlay
+            plt.subplot(num_samples, 3, sample_idx*3 + 3)
+            img = single_image[0].cpu().squeeze().numpy()
+            plt.imshow(img, cmap='gray')
+            plt.imshow(cam, cmap='jet', alpha=0.5)
+            plt.title('Overlay')
+            plt.axis('off')
+            
+            sample_idx += 1
+            if sample_idx >= num_samples:
+                break
+    
+    plt.tight_layout()
+    now = datetime.now()
+    plt.savefig(Path("artifacts") / f"gradcam_{now.month:02}_{now.day}_{now.hour}_{now.minute}.png")
+    plt.close()
 
 def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     # Load datasets
@@ -112,6 +165,11 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     plt.xlabel('Predicted Label')
     plt.savefig(Path("artifacts") / f"confusion_matrix_{now.month:02}_{now.day}_{now.hour}_{now.minute}.png")
     plt.close()
+
+    if activeloop:
+        print("\nGenerating Grad-CAM visualizations...")
+        visualize_gradcam(model, device, test_sampler)
+        print("Grad-CAM visualizations saved to artifacts folder.")
 
 
 if __name__ == "__main__":
