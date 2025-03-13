@@ -24,6 +24,7 @@ urllib3==1.26.13
 scikit-image
 dominate
 visdom
+imgaug
 
 #Added PyTorch import with CUDA enabled
 --extra-index-url https://download.pytorch.org/whl/cu118
