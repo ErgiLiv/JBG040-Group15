@@ -21,9 +21,12 @@ types-requests==2.28.11.7
 types-setuptools==65.6.0.2
 types-tqdm==4.64.1
 urllib3==1.26.13
+scikit-image
+dominate
+visdom
 
 #Added PyTorch import with CUDA enabled
 --extra-index-url https://download.pytorch.org/whl/cu118
 torch
 torchvision
-torchaudio 
+torchaudio
