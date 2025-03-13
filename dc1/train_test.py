@@ -16,13 +16,13 @@ def train_model(
 
     for batch in tqdm(train_sampler):
         x, y = batch
-        x, y = x.to(device), y.to(device)  # Move data to the correct device
+        x, y = x.to(device), y.to(device).float()  # Convert target to float for BCE loss
 
         # Forward pass
         predictions = model(x)  # No softmax here; CrossEntropyLoss expects raw logits
 
         # Compute loss
-        loss = loss_function(predictions, y.long())  # Ensure y is long (integer class labels)
+        loss = loss_function(predictions, y)  # Ensure y is long (integer class labels)
         losses.append(loss.item())
 
         optimizer.zero_grad()  # Reset gradients
@@ -37,29 +37,24 @@ def test_model(model, test_sampler, loss_function, device):
     losses = []
     all_predictions = []
     all_labels = []
-    all_probs = []
 
     with torch.no_grad():
         for data, target in test_sampler:
-            data, target = data.to(device), target.to(device)
+            data, target = data.to(device), target.to(device).float()
 
             output = model(data)  # Raw logits
 
-            # Convert logits to probabilities using softmax
-            probs = torch.softmax(output, dim=1)
-
-            # Get predicted class (argmax)
-            predicted = torch.argmax(probs, dim=1)
+            # Convert logits to predictions using 0.5 threshold
+            predicted = (torch.sigmoid(output) > 0.5).int()
 
             # Compute loss
-            loss = loss_function(output, target.long())  # Ensure target is long (int labels)
+            loss = loss_function(output, target)  # Ensure target is long (int labels)
             losses.append(loss.item())
 
             all_predictions.extend(predicted.cpu().numpy())
             all_labels.extend(target.cpu().numpy())
-            all_probs.extend(probs.cpu().numpy())  # Store class probabilities
 
-    return losses, all_predictions, all_labels, all_probs
+    return losses, all_predictions, all_labels
 
 
 

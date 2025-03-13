@@ -45,7 +45,10 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
 
     # Modify final fully connected layer for binary classification (1 output neuron)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, 1)  
+    model.fc = nn.Sequential(
+        nn.Linear(num_ftrs, 1),
+        nn.Flatten(0, 1)  # Flatten output to match target dimensions
+    )
 
     # Optimizer & Loss
     optimizer = optim.AdamW(model.parameters(), lr=0.05, weight_decay=1e-4)
