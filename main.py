@@ -3,6 +3,7 @@ from dc1.batch_sampler import BatchSampler
 from dc1.image_dataset import ImageDataset
 from dc1.net import Net
 from dc1.train_test import train_model, test_model
+from dc1.grad_cam import GradCAM  # new import for Grad-CAM
 
 # Torch imports
 import torch
@@ -35,8 +36,8 @@ class FocalLoss(torch.nn.Module):
 
 def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     # Load datasets
-    train_dataset = ImageDataset(Path("dc1/data/X_train.npy"), Path("dc1/data/Y_train.npy"),augment= True)
-    test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test.npy"),augment = False)
+    train_dataset = ImageDataset(Path("dc1/data/X_train.npy"), Path("dc1/data/Y_train_binary.npy"),augment= True)
+    test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test_binary.npy"),augment = False)
 
     # Create model (assumes binary output Net)
     model = Net()
@@ -45,7 +46,7 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.1)
 
     # Loss function - Focal Loss
-    loss_function = FocalLoss(alpha=0.4, gamma=3.0)
+    loss_function = FocalLoss(alpha=0.25, gamma=2.0)
 
     n_epochs = args.nb_epochs
     batch_size = args.batch_size
@@ -106,6 +107,48 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
         os.mkdir(Path("artifacts/"))
 
     fig.savefig(Path("artifacts") / f"session_{now.month:02}_{now.day:02}_{now.hour}_{now.minute:02}.png")
+
+    # Grad-CAM integration: show only pneumothorax pictures in a grid.
+    # Reload test dataset using binary labels for filtering.
+    test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test_binary.npy"), augment=False)
+    pneu_samples = []
+    for i in range(len(test_dataset)):
+        img, label = test_dataset[i]
+        if label == 1:  # only pneumothorax sample
+            pneu_samples.append(img)
+        if len(pneu_samples) == 5:
+            break
+    if len(pneu_samples) < 5:
+        print("Warning: found less than 5 pneumothorax images.")
+
+    # Prepare a grid: 5 rows and 3 columns: Original, Heatmap, Overlay.
+    fig, axes = plt.subplots(5, 3, figsize=(12, 20))
+    # Choose target layer; here we assume model.cnn_layers[15] is the third CBAMBlock.
+    target_layer = model.cnn_layers[15]
+    grad_cam = GradCAM(model, target_layer)
+    for i, img in enumerate(pneu_samples):
+        img_tensor = img.unsqueeze(0).to(device)
+        cam = grad_cam.generate(img_tensor)
+        original = img.squeeze().cpu().numpy()
+        # Original image
+        axes[i, 0].imshow(original, cmap="gray")
+        axes[i, 0].set_title("Pneumothorax X-ray")
+        axes[i, 0].axis("off")
+        # Heatmap only
+        axes[i, 1].imshow(cam, cmap="jet")
+        axes[i, 1].set_title("Grad-CAM Heatmap")
+        axes[i, 1].axis("off")
+        # Overlay: original plus heatmap overlayed at 50% opacity
+        axes[i, 2].imshow(original, cmap="gray")
+        axes[i, 2].imshow(cam, cmap="jet", alpha=0.5)
+        axes[i, 2].set_title("Overlay")
+        axes[i, 2].axis("off")
+    plt.tight_layout()
+    # Save the grid with a time-based filename
+    now = datetime.now()
+    grid_filename = Path("artifacts") / f"gradcam_grid_{now.month:02}_{now.day:02}_{now.hour}_{now.minute:02}_{now.second:02}.png"
+    plt.savefig(grid_filename)
+    plt.show()
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
     """
 
     # Load test dataset via ImageDataset to enable batching
-    test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test.npy"))
+    test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test_binary.npy"))
     test_sampler = BatchSampler(batch_size=batch_size, dataset=test_dataset, balanced=False)
 
     all_labels = []
@@ -68,7 +68,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
     # ROC Curve and AUC
     fpr, tpr, _ = roc_curve(all_labels, all_probs)
     auc = roc_auc_score(all_labels, all_probs)
-
+    print("AUROC Score:", auc)  # Added print for AUROC
     plt.figure()
     plt.plot(fpr, tpr, label=f"ROC Curve (AUC = {auc:.2f})")
     plt.plot([0, 1], [0, 1], linestyle="--", color="gray")
@@ -91,7 +91,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
 
 
 if __name__ == "__main__":
-    model_path = "model_weights/model_03_11_12_56.txt"  # Update with your trained model path
+    model_path = "model_weights/model_03_13_1_01.txt"  # Update with your trained model path
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = load_model(model_path, device)
