@@ -1,7 +1,0 @@
-venv/
-__pycache__/
-trainA/
-trainB/
-testA/
-testB/
-pytorch-CycleGAN-and-pix2pix/
