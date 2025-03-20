@@ -22,7 +22,7 @@ def load_model(model_path: str, device: str = "cpu") -> nn.Module:
     Load the trained ResNet model weights and return the model.
     """
     # Create ResNet model with same architecture as training
-    model = models.resnet18(pretrained=False)
+    model = models.resnet18(pretrained=True)
     model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
@@ -56,7 +56,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
             # Get model predictions
             logits = model(x_batch)
             probs = torch.sigmoid(logits)
-            predicted_labels = (probs > 0.5).long()
+            predicted_labels = (probs > 0.1).long()
 
             # Store results
             all_labels.extend(y_batch.cpu().numpy())
@@ -123,7 +123,7 @@ def evaluate_model(model: nn.Module, batch_size: int = 100, device: str = "cpu")
 
 if __name__ == "__main__":
     # Specify model path directly
-    model_path = "model_weights/resnet18_model_03_13_02_09.pt"  # Update with your model path
+    model_path = "model_weights/resnet18_pretrained_binary_aug.pt"  # Update with your model path
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
