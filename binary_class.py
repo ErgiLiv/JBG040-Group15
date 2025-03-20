@@ -102,11 +102,6 @@ if __name__ == "__main__":
     parser.add_argument("--balanced_batches", action="store_true", help="Balance batches for class labels")
     args = parser.parse_args()
 
-    parser.add_argument("dc1/data/y_train.npy", type=str, default="dc1/data/Y_train_binary.npy", help="Path to Y_train labels")
-    parser.add_argument("dc1/data/y_test.npy", type=str, default="dc1/data/Y_test_binary.npy", help="Path to Y_test labels")
-
-    args = parser.parse_args()
-
     main(args)
 
 
