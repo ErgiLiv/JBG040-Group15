@@ -127,6 +127,10 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     # Load datasets
     train_dataset = ImageDataset(Path("dc1/data/X_train.npy"), Path("dc1/data/Y_train.npy"))
     test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test.npy"))
+    
+	#Binary dataset usage
+    # train_dataset = ImageDataset(Path("dc1/data/X_train.npy"), Path("dc1/data/Y_train_binary.npy"))
+    # test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test_binary.npy"))
 
     # Load Pretrained ResNet-18 and modify for 6 classes
     #model = models.resnet18(pretrained=True)
