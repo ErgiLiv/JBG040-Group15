@@ -14,6 +14,12 @@ from dc1.batch_sampler import BatchSampler
 from dc1.image_dataset import ImageDataset
 from dc1.train_test import train_model, test_model
 
+def relabel_dataset(input_file: str, output_file: str, pneumothorax_class: int = 5):
+    """Convert multi-class labels to binary classification (1: Pneumothorax, 0: Other)."""
+    labels = np.load(input_file)
+    new_labels = np.where(labels == pneumothorax_class, 1, 0)
+    np.save(output_file, new_labels)
+    print(f"Relabeled dataset saved to {output_file}")
 
 def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     # Load datasets
