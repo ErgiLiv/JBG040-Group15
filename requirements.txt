@@ -26,6 +26,7 @@ dominate
 visdom
 imgaug
 lime
+seaborn
 
 #Added PyTorch import with CUDA enabled
 --extra-index-url https://download.pytorch.org/whl/cu118
