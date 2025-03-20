@@ -21,34 +21,30 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
     train_dataset = ImageDataset(Path("dc1/data/X_train.npy"), Path("dc1/data/Y_train.npy"))
     test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test.npy"))
 
-    # Load Pretrained ResNet-18 and modify for 6 classes
+    # Load Pretrained ResNet-18 model
     model = models.resnet18(pretrained=True)
     
-    # Modify first convolution layer to accept grayscale images
     model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     
-    # Modify final fully connected layer
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, 6)  # 6 classes
+    model.fc = nn.Linear(num_ftrs, 6) 
 
-    # Initialize SGD optimizer with momentum, weight decay and learning rate scheduler
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     
-    # Learning Rate scheduler to reduce the learning rate on plateau
+    #Learning rate for overfitting
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
     
     loss_function = nn.CrossEntropyLoss()
 
-    # Training setup
     n_epochs = args.nb_epochs
     batch_size = args.batch_size
 
-    # GPU or CPU selection
+    #Cuda Enabled
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     summary(model, (1, 128, 128), device=device)
 
-    # Batch sampling
+
     train_sampler = BatchSampler(batch_size=batch_size, dataset=train_dataset, balanced=args.balanced_batches)
     test_sampler = BatchSampler(batch_size=100, dataset=test_dataset, balanced=args.balanced_batches)
 
@@ -76,7 +72,7 @@ def main(args: argparse.Namespace, activeloop: bool = True) -> None:
             print(f"\nEpoch {e + 1} testing done, loss: {mean_loss}\n")
 
             # Update learning rate scheduler
-            scheduler.step(mean_loss)  # Step on test loss
+            scheduler.step(mean_loss)  
 
             # Live loss plot
             plotext.clf()

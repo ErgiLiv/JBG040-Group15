@@ -53,7 +53,7 @@ def explain_with_lime(model, device, test_sampler, num_samples=5, num_features=1
             break
 
         for i in range(min(len(data), num_samples - sample_idx)):
-            single_image = data[i].cpu().numpy().squeeze()  # Convert tensor to numpy
+            single_image = data[i].cpu().numpy().squeeze()  
             single_target = target[i].item()
 
             # Define prediction function for LIME
@@ -117,10 +117,9 @@ def explain_with_lime(model, device, test_sampler, num_samples=5, num_features=1
     
 def load_model(weights_path: str):
     model = models.resnet18(pretrained=False)
-    model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)  # Modify for grayscale
-    model.fc = nn.Linear(model.fc.in_features, 6)  # Modify for 6 classes
-    model.load_state_dict(torch.load(weights_path, map_location="cpu")) # Load trained weights
-    model.eval()
+    model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)  
+    model.fc = nn.Linear(model.fc.in_features, 6)  
+    model.load_state_dict(torch.load(weights_path, map_location="cpu")) 
     return model
 
 def main(args: argparse.Namespace, activeloop: bool = True) -> None:
@@ -142,7 +141,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load trained model separately for LIME
-    model_path = sorted(Path("model_weights/").glob("resnet18_model_*.pt"))[-1]  # Get latest model
+    model_path = sorted(Path("model_weights/").glob("resnet18_model_*.pt"))[-1]  
     model = load_model(str(model_path))
     test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test.npy"))
     test_sampler = BatchSampler(batch_size=100, dataset=test_dataset, balanced=True)

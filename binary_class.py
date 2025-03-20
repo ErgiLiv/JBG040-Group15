@@ -17,24 +17,23 @@ from dc1.train_test import train_model, test_model
 
 
 def main(args: argparse.Namespace, activeloop: bool = True) -> None:
-    # Load datasets
+
     train_dataset = ImageDataset(Path("dc1/data/X_train_aug.npy"), Path("dc1/data/Y_train_aug.npy"))
     test_dataset = ImageDataset(Path("dc1/data/X_test.npy"), Path("dc1/data/Y_test_binary.npy"))
 
-    # Load ResNet-18 (NO pretrained weights)
+    #Pretrained ResNet18 model
     model = models.resnet18(pretrained=True)
 
-    # Modify first convolution layer for grayscale images
+
     model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
 
-    # Modify final fully connected layer for binary classification (1 output neuron)
+    #Modify final layer for binary classification
     num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 1),
-        nn.Flatten(0, 1)  # Flatten output to match target dimensions
+        nn.Flatten(0, 1)  
     )
 
-    # Optimizer & Loss
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     loss_function = nn.BCEWithLogitsLoss()  # Binary classification loss
 
