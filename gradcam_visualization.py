@@ -7,8 +7,8 @@ from pathlib import Path
 import cv2
 from typing import Tuple, List
 import random
-
 from dc1.image_dataset import ImageDataset
+from dc1.batch_sampler import BatchSampler
 
 class GradCAM:
     def __init__(self, model: nn.Module, target_layer: nn.Module):
@@ -18,7 +18,6 @@ class GradCAM:
         self.activations = None
         self.device = next(model.parameters()).device 
         
-        # Register hooks
         def forward_hook(module, input, output):
             self.activations = output.detach()
         
@@ -30,7 +29,7 @@ class GradCAM:
     
     def generate_cam(self, input_tensor: torch.Tensor, target_category: int = None) -> np.ndarray:
         """Generate Grad-CAM visualization."""
-        # Forward pass
+        # forward pass
         input_tensor = input_tensor.to(self.device)
         model_output = self.model(input_tensor)
         if target_category is None:
@@ -39,12 +38,12 @@ class GradCAM:
         
         prob = torch.sigmoid(model_output)
         
-        # Backward pass
+        # backward pass
         self.model.zero_grad()
         output = model_output[0]
         output.backward()
         
-        # Generate CAM
+        # generate CAM
         gradients = self.gradients.squeeze().to(self.device)
         activations = self.activations.squeeze().to(self.device)
         weights = torch.mean(gradients, dim=(1, 2))
@@ -55,7 +54,7 @@ class GradCAM:
         
         cam = torch.relu(cam)
         cam = cam - torch.min(cam)
-        cam = cam / (torch.max(cam) + 1e-8)  # Normalize between [0, 1]
+        cam = cam / (torch.max(cam) + 1e-8)  # normalizes between [0, 1]
         
         return cam.cpu().numpy()
 
@@ -77,15 +76,14 @@ def visualize_gradcam(image: np.ndarray, cam: np.ndarray, output_path: str, clas
     cam = cv2.resize(cam, (128, 128))
     image = (image * 255).astype(np.uint8)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    # Create heatmap
+    # create heatmap
     heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
     image_rgb = image_rgb.astype(np.uint8)
     heatmap = heatmap.astype(np.uint8)
-    # Combine original image with heatmap
+    # combine original image with heatmap
     superimposed = cv2.addWeighted(image_rgb, 0.6, heatmap, 0.4, 0)
     superimposed = cv2.cvtColor(superimposed, cv2.COLOR_BGR2RGB)
     
-    # Save visualization
     plt.figure(figsize=(12, 4))
     
     plt.subplot(1, 3, 1)
@@ -109,7 +107,7 @@ def visualize_gradcam(image: np.ndarray, cam: np.ndarray, output_path: str, clas
 
 def create_combined_visualization(images: List[np.ndarray], 
                                cams: List[np.ndarray], 
-                               class_name: str,
+                               labels: List[str],
                                output_path: str,
                                probs: List[float]):
     """Create a combined visualization of multiple samples in a grid."""
@@ -117,7 +115,7 @@ def create_combined_visualization(images: List[np.ndarray],
     plt.figure(figsize=(15, 4 * num_samples))
     
     for idx in range(num_samples):
-        # Process images 
+        # process images 
         image = (images[idx] * 255).astype(np.uint8)
         cam = cv2.resize(cams[idx], (128, 128))
         image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
@@ -125,9 +123,9 @@ def create_combined_visualization(images: List[np.ndarray],
         superimposed = cv2.addWeighted(image_rgb, 0.6, heatmap, 0.4, 0)
         superimposed = cv2.cvtColor(superimposed, cv2.COLOR_BGR2RGB)
         
-        # Create row for this sample
+        # create row for this sample
         plt.subplot(num_samples, 3, idx * 3 + 1)
-        plt.title(f"{class_name} (Prob: {probs[idx]:.3f})")
+        plt.title(f"{labels[idx]} (Prob: {probs[idx]:.3f})")
         plt.imshow(image, cmap='gray')
         plt.axis('off')
         
@@ -146,75 +144,67 @@ def create_combined_visualization(images: List[np.ndarray],
     plt.close()
 
 def main():
-    # Setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
-    model_path = "model_weights/resnet18_pretrained_binary_aug.pt"  # Path to trained model
+    model_path = sorted(Path("model_weights/").glob("resnet18_model_*.pt"))[-1]
+    #model_path = "model_weights/resnet18_pretrained_binary_aug.pt"
     output_dir = Path("artifacts/gradcam")
     output_dir.mkdir(exist_ok=True, parents=True)
     
-    # Load model
+    # load model
     model = load_model(model_path, device)
     model.to(device)
     
-    # Initialize Grad-CAM with the last convolutional layer
+    # initialize Grad-CAM with the last convolutional layer
     grad_cam = GradCAM(model, model.layer4[-1].conv2)
     
-    # Load test dataset
+    # load test dataset and create balanced sampler
     test_dataset = ImageDataset(
         Path("dc1/data/X_test.npy"),
         Path("dc1/data/Y_test_binary.npy")
     )
+    test_sampler = BatchSampler(batch_size=100, dataset=test_dataset, balanced=True)
     
- 
-    normal_indices = [i for i, (_, label) in enumerate(test_dataset) if label == 0]
-    pneumo_indices = [i for i, (_, label) in enumerate(test_dataset) if label == 1]
-
-    num_samples = 5
+    num_samples = 3
+    samples = {'images': [], 'cams': [], 'probs': [], 'labels': []}
+    sample_idx = 0
     
-    normal_samples = {'images': [], 'cams': [], 'probs': []}
-    pneumo_samples = {'images': [], 'cams': [], 'probs': []}
-
-    for class_label, indices in [(0, normal_indices), (1, pneumo_indices)]:
-        selected_indices = random.sample(indices, min(num_samples, len(indices)))
-        
-        for sample_idx, idx in enumerate(selected_indices):
-            image, label = test_dataset[idx]
+    for data, target in test_sampler:
+        if sample_idx >= num_samples:
+            break
             
-            # Prepare input
+        for i in range(min(len(data), num_samples - sample_idx)):
+            image = data[i]
+            label = target[i].item()
+            
             input_tensor = image.unsqueeze(0).to(device)
             
-            # Generate Grad-CAM
+            # generate Grad-CAM
             cam = grad_cam.generate_cam(input_tensor)
             
-            # Get model prediction
+            # model prediction
             with torch.no_grad():
                 output = model(input_tensor)
                 prob = torch.sigmoid(output).item()
             
-            # Store samples for combined visualization
-            samples_dict = normal_samples if class_label == 0 else pneumo_samples
-            samples_dict['images'].append(image.squeeze().numpy())
-            samples_dict['cams'].append(cam)
-            samples_dict['probs'].append(prob)
+            samples['images'].append(image.squeeze().numpy())
+            samples['cams'].append(cam)
+            samples['probs'].append(prob)
+            samples['labels'].append("Pneumothorax" if label == 1 else "No Pneumothorax")
             
-    create_combined_visualization(
-        normal_samples['images'],
-        normal_samples['cams'],
-        "No Pneumothorax",
-        str(output_dir / "combined_normal.png"),
-        normal_samples['probs']
-    )
+            sample_idx += 1
+            if sample_idx >= num_samples:
+                break
     
     create_combined_visualization(
-        pneumo_samples['images'],
-        pneumo_samples['cams'],
-        "Pneumothorax",
-        str(output_dir / "combined_pneumothorax.png"),
-        pneumo_samples['probs']
+        samples['images'],
+        samples['cams'],
+        samples['labels'],
+        str(output_dir / "gradcam_visualization.png"),
+        samples['probs']
     )
     
-    print("Generated combined visualizations")
+    print("Generated Grad-CAM visualization")
 
 if __name__ == "__main__":
     main()

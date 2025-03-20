@@ -12,28 +12,28 @@ def train_model(
         device: str,
 ) -> List[torch.Tensor]:
     losses = []
-    model.train()  # Set model to training mode
+    model.train()  # sets model to training mode
 
     for batch in tqdm(train_sampler):
         x, y = batch
-        x, y = x.to(device), y.to(device).float()  # Convert target to float for BCE loss
+        x, y = x.to(device), y.to(device).float()  # converts target to float for BCE loss
 
-        # Forward pass
-        predictions = model(x)  # No softmax here; CrossEntropyLoss expects raw logits
+        # forward pass
+        predictions = model(x)
 
-        # Compute loss
-        loss = loss_function(predictions, y)  # Ensure y is long (integer class labels)
+        # compute loss
+        loss = loss_function(predictions, y)
         losses.append(loss.item())
 
-        optimizer.zero_grad()  # Reset gradients
-        loss.backward()  # Backpropagation
-        optimizer.step()  # Update model weights
+        optimizer.zero_grad()  # resets gradients
+        loss.backward()  # backpropagation
+        optimizer.step()  # updates model weights
 
     return losses
 
 
 def test_model(model, test_sampler, loss_function, device):
-    model.eval()  # Set model to evaluation mode
+    model.eval()  # sets model to evaluation mode now
     losses = []
     all_predictions = []
     all_labels = []
@@ -42,13 +42,13 @@ def test_model(model, test_sampler, loss_function, device):
         for data, target in test_sampler:
             data, target = data.to(device), target.to(device).float()
 
-            output = model(data)  # Raw logits
+            output = model(data)
 
-            # Convert logits to predictions using 0.5 threshold
+            # convert logits to predictions using 0.5 threshold
             predicted = (torch.sigmoid(output) > 0.5).int()
 
-            # Compute loss
-            loss = loss_function(output, target)  # Ensure target is long (int labels)
+            # compute loss
+            loss = loss_function(output, target)
             losses.append(loss.item())
 
             all_predictions.extend(predicted.cpu().numpy())
